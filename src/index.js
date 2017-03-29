@@ -2,10 +2,11 @@
  * Created by Yun on 2016-12-10.
  */
 
-import {computed} from 'mobx';
+import { computed } from 'mobx';
 import camelCase from "camelcase";
+import valid from './valid';
 
-function defineComputedProperty(target, name, descriptor){
+function defineComputedProperty(target, name, descriptor) {
   Object.defineProperty(
     target,
     name,
@@ -15,19 +16,23 @@ function defineComputedProperty(target, name, descriptor){
 }
 
 export function getValidateError() {
-  return this.constructor.__validateFields.find(key =>this[key]);
+  return this.constructor.__validateFields.find(key => this[key]);
 }
 
 export function getIsValid() {
   return !this.validateError;
 }
 
-export default function validate(reg, msg){
-  const test = reg.test
-    ? (value=>reg.test(value)?undefined:(msg||'ValidationError'))
-    : reg;
+export default function validate(reg, msg) {
 
-  return function (target, name, args){
+  const regType = Object.prototype.toString.call(reg)
+  const test = (value, model) => {
+    if (reg.test) return reg.test(value) ? undefined : (msg || 'ValidationError')
+    else if (regType === "[object Function]") return valid(value, reg(value,model))
+    else return valid(value, reg);
+  }
+
+  return function (target, name, args) {
     const validateName = camelCase('validateError', name);
     const descriptor = {
       configurable: true,
@@ -41,7 +46,7 @@ export default function validate(reg, msg){
 
     const clazz = target.constructor;
 
-    if (clazz.hasOwnProperty('__validateFields')){
+    if (clazz.hasOwnProperty('__validateFields')) {
       clazz.__validateFields.push(validateName);
     } else {
       Object.defineProperty(clazz, '__validateFields', {
